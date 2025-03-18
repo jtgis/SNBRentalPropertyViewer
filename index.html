@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Leaflet PAN Viewer</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/esri-leaflet@2.5.3/dist/esri-leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        #details {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 300px;
+            background: white;
+            z-index: 1000;
+            max-height: 100%;
+            overflow-y: auto;
+        }
+        .leaflet-top.leaflet-left {
+            top: 0; /* Adjust zoom controls position */
+        }
+        #exportButton {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        #layerSelector {
+            position: absolute;
+            top: 70px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div id="details"></div>
+    <div id="map"></div>
+    <div id="exportButton">Export to XLS</div>
+    <div id="layerSelector">
+        <input type="radio" id="osm" name="layer" value="osm" checked>
+        <label for="osm">Street Map</label><br>
+        <input type="radio" id="imagery" name="layer" value="imagery">
+        <label for="imagery">Imagery</label>
+    </div>
+    <script>
+        // Initialize the map centered on Saint John, NB
+        var map = L.map('map').setView([45.273315, -66.063308], 15);
+
+        // Add base layers
+        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        var satelliteLayer = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');;
+
+        // Layer selector
+        document.querySelectorAll('input[name="layer"]').forEach(function (elem) {
+            elem.addEventListener('change', function (e) {
+                if (e.target.value === 'osm') {
+                    map.addLayer(osmLayer);
+                    map.removeLayer(satelliteLayer);
+                } else {
+                    map.addLayer(satelliteLayer);
+                    map.removeLayer(osmLayer);
+                }
+            });
+        });
+
+        // Add the ArcGIS REST service layer with a query
+        var featureLayer = L.esri.featureLayer({
+            url: 'https://geonb.snb.ca/arcgis/rest/services/GeoNB_SNB_Pan/MapServer/0',
+            where: "UPPER(Descript) SIMILAR TO '%(MULTI|APT|APART)%' AND UPPER(Descript) NOT LIKE '%BAPT%'"
+        }).addTo(map);
+
+        var selectedFeatureLayer;
+        var labelLayer = L.layerGroup().addTo(map);
+
+        // Function to update the labels with features in view
+        function updateLabels() {
+            labelLayer.clearLayers(); // Clear existing labels
+            featureLayer.query().within(map.getBounds()).limit(20).run(function (error, featureCollection) {
+                featureCollection.features.forEach(function (feature) {
+                    // Add label to the map
+                    var label = L.marker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]], {
+                        icon: L.divIcon({
+                            className: 'label',
+                            html: '<div style="text-align: center;"><b>' + feature.properties.Pan + '</b><br>' + feature.properties.Descript + '</div>'
+                        })
+                    }).addTo(labelLayer);
+                });
+            });
+        }
+
+        // Function to highlight a feature
+        function highlightFeature(feature) {
+            if (selectedFeatureLayer) {
+                map.removeLayer(selectedFeatureLayer);
+            }
+            selectedFeatureLayer = L.geoJSON(feature, {
+                style: {
+                    color: 'red',
+                    weight: 2
+                }
+            }).addTo(map);
+            var bounds = selectedFeatureLayer.getBounds();
+            map.fitBounds(bounds, { padding: [20, 20] }); // Add padding to fit the polygon nicely
+            var details = document.getElementById('details');
+            var properties = feature.properties;
+            var detailsContent = '<table>';
+            for (var key in properties) {
+                if (properties.hasOwnProperty(key)) {
+                    detailsContent += '<tr><th>' + key + '</th><td>' + properties[key] + '</td></tr>';
+                }
+            }
+            detailsContent += '</table>';
+            details.innerHTML = detailsContent;
+
+            // Highlight the label
+            labelLayer.eachLayer(function (layer) {
+                if (layer.getLatLng().equals([feature.geometry.coordinates[1], feature.geometry.coordinates[0]])) {
+                    layer.getElement().style.backgroundColor = 'yellow';
+                } else {
+                    layer.getElement().style.backgroundColor = 'white';
+                }
+            });
+        }
+
+        // Update the labels when the map view changes
+        map.on('moveend', updateLabels);
+
+        // Initial labels update
+        updateLabels();
+
+        // Enable feature click to highlight and show details
+        featureLayer.on('click', function (e) {
+            highlightFeature(e.layer.feature);
+        });
+
+        // Export to XLS function
+        document.getElementById('exportButton').onclick = function () {
+            featureLayer.query().within(map.getBounds()).run(function (error, featureCollection) {
+                var data = featureCollection.features.map(function (feature) {
+                    return feature.properties;
+                });
+                var worksheet = XLSX.utils.json_to_sheet(data);
+                var workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'Properties');
+                XLSX.writeFile(workbook, 'properties.xlsx');
+            });
+        };
+    </script>
+</body>
+</html>

@@ -63,6 +63,15 @@
             border: 1px solid #ccc;
             cursor: pointer;
         }
+        #searchBox {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
     </style>
 </head>
 <body>
@@ -76,6 +85,10 @@
         <label for="imagery">Imagery</label>
     </div>
     <div id="exportButton">Export to XLS</div>
+    <div id="searchBox">
+        <input type="text" id="searchInput" placeholder="Search location">
+        <button id="searchButton">Search</button>
+    </div>
     <script>
         // Initialize the map centered on Saint John, NB
         var map = L.map('map').setView([45.273315, -66.063308], 15);
@@ -193,6 +206,29 @@
                 details.style.maxHeight = '50%';
             } else {
                 details.style.maxHeight = '0px';
+            }
+        };
+
+        // Search functionality
+        document.getElementById('searchButton').onclick = function () {
+            var query = document.getElementById('searchInput').value;
+            if (query) {
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.length > 0) {
+                            var result = data[0];
+                            var lat = result.lat;
+                            var lon = result.lon;
+                            map.setView([lat, lon], 15);
+                        } else {
+                            alert('Location not found');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while searching for the location');
+                    });
             }
         };
     </script>

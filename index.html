@@ -49,6 +49,7 @@
             background: white;
             padding: 10px;
             border: 1px solid #ccc;
+            margin-top: 50px; /* Add padding between the basemap selector and the zoom tool */
         }
     </style>
 </head>
@@ -67,9 +68,11 @@
         var map = L.map('map').setView([45.273315, -66.063308], 15);
 
         // Add base layers
-        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
 
-        var satelliteLayer = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');;
+        var satelliteLayer = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
 
         // Layer selector
         document.querySelectorAll('input[name="layer"]').forEach(function (elem) {

@@ -72,15 +72,6 @@
             border: 1px solid #ccc;
             cursor: pointer;
         }
-        #searchBox {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-            background: white;
-            padding: 10px;
-            border: 1px solid #ccc;
-        }
     </style>
 </head>
 <body>
@@ -95,12 +86,6 @@
     </div>
     <div id="gpsButton">Go to My Location</div>
     <div id="exportButton">Export to XLS</div>
-    <!--
-    <div id="searchBox">
-        <input type="text" id="searchInput" placeholder="Search location">
-        <button id="searchButton">Search</button>
-    </div>
-    -->
     <script>
         // Initialize the map centered on Saint John, NB
         var map = L.map('map').setView([45.273315, -66.063308], 15);
@@ -133,19 +118,14 @@
 
         var selectedFeatureLayer;
         var labelLayer = L.layerGroup().addTo(map);
-
+        
         // Function to update the labels with features in view
         function updateLabels() {
             labelLayer.clearLayers(); // Clear existing labels
             featureLayer.query().within(map.getBounds()).limit(20).run(function (error, featureCollection) {
                 featureCollection.features.forEach(function (feature) {
                     // Add label to the map
-                    var label = L.marker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]], {
-                        icon: L.divIcon({
-                            className: 'label',
-                            html: '<div style="text-align: center;"><b>' + feature.properties.Pan + '</b><br>' + feature.properties.Descript + '</div>'
-                        })
-                    }).addTo(labelLayer);
+                    var label = L.marker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]]).addTo(labelLayer);
                 });
             });
         }

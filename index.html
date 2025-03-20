@@ -111,37 +111,37 @@
         });
 
         // Add the ArcGIS REST service layer with a query
-        var featureLayer = L.esri.featureLayer({
+        var rentalFeatureLayer = L.esri.featureLayer({
             url: 'https://geonb.snb.ca/arcgis/rest/services/GeoNB_SNB_Pan/MapServer/0',
             where: "UPPER(Descript) SIMILAR TO '%(MULTI|APT|APART)%' AND UPPER(Descript) NOT LIKE '%BAPT%'"
         }).addTo(map);
 
-        var selectedFeatureLayer;
-        var labelLayer = L.layerGroup().addTo(map);
+        var highlightedFeatureLayer;
+        var featureLayerGroup = L.layerGroup().addTo(map);
         
-        // Function to update the labels with features in view
-        function updateLabels() {
-            labelLayer.clearLayers(); // Clear existing labels
-            featureLayer.query().within(map.getBounds()).limit(20).run(function (error, featureCollection) {
+        // Function to update the features in view
+        function updateFeatures() {
+            featureLayerGroup.clearLayers(); // Clear existing features
+            rentalFeatureLayer.query().within(map.getBounds()).limit(20).run(function (error, featureCollection) {
                 featureCollection.features.forEach(function (feature) {
-                    // Add label to the map
-                    var label = L.marker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]]).addTo(labelLayer);
+                    // Add feature to the map
+                    var featureMarker = L.marker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]]).addTo(featureLayerGroup);
                 });
             });
         }
 
         // Function to highlight a feature
         function highlightFeature(feature) {
-            if (selectedFeatureLayer) {
-                map.removeLayer(selectedFeatureLayer);
+            if (highlightedFeatureLayer) {
+                map.removeLayer(highlightedFeatureLayer);
             }
-            selectedFeatureLayer = L.geoJSON(feature, {
+            highlightedFeatureLayer = L.geoJSON(feature, {
                 style: {
                     color: 'red',
                     weight: 2
                 }
             }).addTo(map);
-            var bounds = selectedFeatureLayer.getBounds();
+            var bounds = highlightedFeatureLayer.getBounds();
             map.fitBounds(bounds, { padding: [20, 20] }); // Add padding to fit the polygon nicely
             var details = document.getElementById('details');
             var properties = feature.properties;
@@ -157,8 +157,8 @@
             // Expand the details box
             details.style.maxHeight = '50%';
 
-            // Highlight the label
-            labelLayer.eachLayer(function (layer) {
+            // Highlight the feature marker
+            featureLayerGroup.eachLayer(function (layer) {
                 if (layer.getLatLng().equals([feature.geometry.coordinates[1], feature.geometry.coordinates[0]])) {
                     layer.getElement().style.backgroundColor = 'yellow';
                 } else {
@@ -167,20 +167,20 @@
             });
         }
 
-        // Update the labels when the map view changes
-        map.on('moveend', updateLabels);
+        // Update the features when the map view changes
+        map.on('moveend', updateFeatures);
 
-        // Initial labels update
-        updateLabels();
+        // Initial features update
+        updateFeatures();
 
         // Enable feature click to highlight and show details
-        featureLayer.on('click', function (e) {
+        rentalFeatureLayer.on('click', function (e) {
             highlightFeature(e.layer.feature);
         });
 
         // Export to XLS function
         document.getElementById('exportButton').onclick = function () {
-            featureLayer.query().within(map.getBounds()).where("UPPER(Descript) SIMILAR TO '%(MULTI|APT|APART)%' AND UPPER(Descript) NOT LIKE '%BAPT%'").run(function (error, featureCollection) {
+            rentalFeatureLayer.query().within(map.getBounds()).where("UPPER(Descript) SIMILAR TO '%(MULTI|APT|APART)%' AND UPPER(Descript) NOT LIKE '%BAPT%'").run(function (error, featureCollection) {
                 var data = featureCollection.features.map(function (feature) {
                     return feature.properties;
                 });
@@ -198,29 +198,6 @@
                 details.style.maxHeight = '50%';
             } else {
                 details.style.maxHeight = '0px';
-            }
-        };
-
-        // Search functionality
-        document.getElementById('searchButton').onclick = function () {
-            var query = document.getElementById('searchInput').value;
-            if (query) {
-                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.length > 0) {
-                            var result = data[0];
-                            var lat = result.lat;
-                            var lon = result.lon;
-                            map.setView([lat, lon], 15);
-                        } else {
-                            alert('Location not found');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('An error occurred while searching for the location');
-                    });
             }
         };
 
